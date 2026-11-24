@@ -4,7 +4,7 @@ import {
   Menu, Plus, Search, Sparkles, Trash2, UserRound, X, ChevronRight,
 } from "lucide-react";
 import type { Session, Game, Stats } from "./lib/api";
-import { api, ApiError } from "./lib/api";
+import { api } from "./lib/api";
 import { configReady, supabase } from "./lib/supabase";
 
 type Profile = { display_name: string; email: string | null; steam_id: string | null };
