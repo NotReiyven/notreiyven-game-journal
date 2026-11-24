@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import type { Session, Game, Stats } from "./lib/api";
 import { api } from "./lib/api";
-import { configReady, supabase } from "./lib/supabase";
+import { configReady, missingConfig, supabase } from "./lib/supabase";
 
 type Profile = { display_name: string; email: string | null; steam_id: string | null };
 type PageName = "dashboard" | "games" | "journal" | "profile";
@@ -124,7 +124,7 @@ export default function App() {
     } catch (err) { setError(err instanceof Error ? err.message : "Could not delete session."); }
   };
 
-  if (!configReady) return <SetupScreen />;
+  if (!configReady) return <SetupScreen missing={missingConfig} />;
   if (!authReady) return <div className="screen-center"><div className="spinner" /><p>Preparing your journal...</p></div>;
   if (!sessionToken) return <AuthScreen />;
 
@@ -174,47 +174,31 @@ export default function App() {
   );
 }
 
-function SetupScreen() {
-  return <div className="screen-center"><div className="auth-card"><div className="brand-icon large"><Gamepad2/></div><h1>One quick setup step</h1><p>Copy <code>.env.example</code> to <code>.env</code>, then add your existing FastAPI URL and Supabase public credentials.</p><p className="muted">Never put your Supabase secret key in this frontend.</p></div></div>;
-}
-
-function AuthScreen() {
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!supabase) return;
-    setBusy(true); setMessage("");
-    try {
-      if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email, password, options: { data: { display_name: displayName } },
-        });
-        if (error) throw error;
-        setMessage("Account created. If email confirmation is enabled, check your inbox, then sign in.");
-        setMode("login");
-      }
-    } catch (err) { setMessage(err instanceof Error ? err.message : "Authentication failed."); }
-    finally { setBusy(false); }
-  };
-  return <div className="auth-screen">
-    <div className="auth-visual"><div className="auth-orb orb-one"/><div className="auth-orb orb-two"/><div className="auth-visual-copy"><div className="brand-icon large"><Gamepad2 size={30}/></div><p className="eyebrow">YOUR PERSONAL GAMING DIARY</p><h1>Every session<br/><em>has a story.</em></h1><p className="muted">Keep track of the games you play, the time you spend, and the moments you want to remember.</p><div className="visual-note"><BookOpen size={17}/> A journal for your player life.</div></div></div>
-    <div className="auth-form-side"><form className="auth-card" onSubmit={submit}><p className="eyebrow">{mode === "login" ? "WELCOME BACK" : "START YOUR JOURNAL"}</p><h2>{mode === "login" ? "Sign in" : "Create account"}</h2><p className="muted">Use the same Supabase account as Backlog Compass.</p>
-      {mode === "signup" && <label>Display name<input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required placeholder="Your player name"/></label>}
-      <label>Email address<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com"/></label>
-      <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} placeholder="At least 6 characters"/></label>
-      {message && <div className="inline-message">{message}</div>}
-      <button className="primary-button full-button" disabled={busy}>{busy ? "Please wait..." : mode === "login" ? "Sign in to journal" : "Create account"}<ChevronRight size={17}/></button>
-      <p className="switch-auth">{mode === "login" ? "New here?" : "Already have an account?"} <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setMessage(""); }}>{mode === "login" ? "Create an account" : "Sign in instead"}</button></p>
-    </form></div>
-  </div>;
+function SetupScreen({ missing }: { missing: string[] }) {
+  return (
+    <div className="screen-center">
+      <div className="auth-card">
+        <div className="brand-icon large">
+          <Gamepad2 />
+        </div>
+        <h1>Configuration incomplete</h1>
+        <p>
+          The following environment variables are missing from this deployment:
+        </p>
+        <ul>
+          {missing.map((name) => (
+            <li key={name}>
+              <code>{name}</code>
+            </li>
+          ))}
+        </ul>
+        <p className="muted">
+          Add these variables in your Vercel project settings and redeploy.
+          Never expose your Supabase secret key in this frontend.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: React.ReactNode }) {
